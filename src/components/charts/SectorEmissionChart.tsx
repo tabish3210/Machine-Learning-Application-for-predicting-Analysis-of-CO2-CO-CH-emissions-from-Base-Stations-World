@@ -4,7 +4,7 @@ import { ChartContainer, ChartLegendContent, ChartTooltipContent } from '@/compo
 import { 
   BarChart, Bar, LineChart, Line, ScatterChart, Scatter, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Cell
 } from 'recharts';
 
 interface SectorEmissionChartProps {
