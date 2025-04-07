@@ -60,6 +60,7 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
+  const [mapIsStyled, setMapIsStyled] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,6 +88,7 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
       try {
         setLoading(true);
         setError(null);
+        setMapIsStyled(false);
 
         const coordinates = regionCoordinates[regionId] || [0, 0];
         const zoomLevel = regionZoomLevels[regionId] || 2;
@@ -111,15 +113,16 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
           });
         }
 
-        map.current.on('load', () => {
+        // IMPORTANT: Only add data layers after the style is fully loaded
+        map.current.on('style.load', () => {
           if (!map.current) return;
           
-          // Add data visualization layers
-          addRegionalDataLayers();
+          console.log("Map style loaded successfully");
+          setMapIsStyled(true);
           
           setTimeout(() => {
             setLoading(false);
-          }, 1000);
+          }, 500);
         });
 
         map.current.on('error', (e) => {
@@ -144,9 +147,11 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
     };
   }, [regionId]);
 
-  // Function to add regional data layers
+  // Function to add regional data layers - now separated to be called only when map is styled
   const addRegionalDataLayers = () => {
-    if (!map.current || !regionId) return;
+    if (!map.current || !regionId || !mapIsStyled) return;
+    
+    console.log("Adding regional data layers");
     
     // Remove any existing layers
     if (map.current.getLayer('emission-points')) {
@@ -224,111 +229,118 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
       features: generatePoints(center, pointCount, radius)
     };
     
-    // Add the source and layer
-    map.current.addSource('emission-source', {
-      type: 'geojson',
-      data: points
-    });
-    
-    // Get color based on emission type
-    const color = emissionType === 'co2' ? '#3b82f6' : 
-                  emissionType === 'co' ? '#f97316' : '#8b5cf6';
-    
-    // Add visualization layer based on display type
-    if (displayType === 'total' || displayType === 'percapita') {
-      map.current.addLayer({
-        id: 'emission-points',
-        type: 'circle',
-        source: 'emission-source',
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['get', 'value'],
-            // Scale differently based on display type
-            ...(displayType === 'total' ? [200, 5, 1000, 20] : [2, 5, 15, 20])
-          ],
-          'circle-color': color,
-          'circle-opacity': 0.6,
-          'circle-stroke-width': 1,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
-    } else { // intensity heatmap
-      map.current.addLayer({
-        id: 'emission-points',
-        type: 'heatmap',
-        source: 'emission-source',
-        paint: {
-          'heatmap-weight': [
-            'interpolate', ['linear'], ['get', 'value'],
-            20, 0,
-            100, 1
-          ],
-          'heatmap-intensity': 1,
-          'heatmap-color': [
-            'interpolate', ['linear'], ['heatmap-density'],
-            0, 'rgba(0,0,0,0)',
-            0.2, '#d4eaff',
-            0.4, '#9ec8ff',
-            0.6, '#65a2ff',
-            0.8, '#2979ff',
-            1, '#0d47a1'
-          ],
-          'heatmap-radius': 20,
-          'heatmap-opacity': 0.8
-        }
-      });
-    }
-    
-    // Add popups for the points
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false
-    });
-    
-    if (displayType !== 'intensity') {
-      map.current.on('mouseenter', 'emission-points', (e) => {
-        if (!map.current || !e.features || !e.features[0] || !e.features[0].geometry.type) return;
-        
-        map.current.getCanvas().style.cursor = 'pointer';
-        
-        // Cast the geometry to get TypeScript to recognize coordinates
-        const geometry = e.features[0].geometry as GeoJSON.Point;
-        const coordinates = geometry.coordinates.slice();
-        const value = e.features[0].properties.value;
-        
-        const displayValue = displayType === 'total' 
-          ? `${value} kilotons` 
-          : `${value} tons per capita`;
-        
-        const html = `
-          <div class="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-md text-sm">
-            <p>${emissionType === 'co2' ? 'CO₂' : emissionType === 'co' ? 'CO' : 'CH₄'}: ${displayValue}</p>
-          </div>
-        `;
-        
-        popup
-          .setLngLat(coordinates as [number, number])
-          .setHTML(html)
-          .addTo(map.current);
+    try {
+      // Add the source and layer
+      map.current.addSource('emission-source', {
+        type: 'geojson',
+        data: points
       });
       
-      map.current.on('mouseleave', 'emission-points', () => {
-        if (!map.current) return;
-        map.current.getCanvas().style.cursor = '';
-        popup.remove();
+      // Get color based on emission type
+      const color = emissionType === 'co2' ? '#3b82f6' : 
+                    emissionType === 'co' ? '#f97316' : '#8b5cf6';
+      
+      // Add visualization layer based on display type
+      if (displayType === 'total' || displayType === 'percapita') {
+        map.current.addLayer({
+          id: 'emission-points',
+          type: 'circle',
+          source: 'emission-source',
+          paint: {
+            'circle-radius': [
+              'interpolate', ['linear'], ['get', 'value'],
+              // Scale differently based on display type
+              ...(displayType === 'total' ? [200, 5, 1000, 20] : [2, 5, 15, 20])
+            ],
+            'circle-color': color,
+            'circle-opacity': 0.6,
+            'circle-stroke-width': 1,
+            'circle-stroke-color': '#ffffff'
+          }
+        });
+      } else { // intensity heatmap
+        map.current.addLayer({
+          id: 'emission-points',
+          type: 'heatmap',
+          source: 'emission-source',
+          paint: {
+            'heatmap-weight': [
+              'interpolate', ['linear'], ['get', 'value'],
+              20, 0,
+              100, 1
+            ],
+            'heatmap-intensity': 1,
+            'heatmap-color': [
+              'interpolate', ['linear'], ['heatmap-density'],
+              0, 'rgba(0,0,0,0)',
+              0.2, '#d4eaff',
+              0.4, '#9ec8ff',
+              0.6, '#65a2ff',
+              0.8, '#2979ff',
+              1, '#0d47a1'
+            ],
+            'heatmap-radius': 20,
+            'heatmap-opacity': 0.8
+          }
+        });
+      }
+      
+      console.log("Added emission points layer successfully");
+      
+      // Add popups for the points
+      const popup = new mapboxgl.Popup({
+        closeButton: false,
+        closeOnClick: false
       });
+      
+      if (displayType !== 'intensity') {
+        map.current.on('mouseenter', 'emission-points', (e) => {
+          if (!map.current || !e.features || !e.features[0] || !e.features[0].geometry.type) return;
+          
+          map.current.getCanvas().style.cursor = 'pointer';
+          
+          // Cast the geometry to get TypeScript to recognize coordinates
+          const geometry = e.features[0].geometry as GeoJSON.Point;
+          const coordinates = geometry.coordinates.slice();
+          const value = e.features[0].properties.value;
+          
+          const displayValue = displayType === 'total' 
+            ? `${value} kilotons` 
+            : `${value} tons per capita`;
+          
+          const html = `
+            <div class="p-2 bg-white dark:bg-gray-800 shadow-lg rounded-md text-sm">
+              <p>${emissionType === 'co2' ? 'CO₂' : emissionType === 'co' ? 'CO' : 'CH₄'}: ${displayValue}</p>
+            </div>
+          `;
+          
+          popup
+            .setLngLat(coordinates as [number, number])
+            .setHTML(html)
+            .addTo(map.current);
+        });
+        
+        map.current.on('mouseleave', 'emission-points', () => {
+          if (!map.current) return;
+          map.current.getCanvas().style.cursor = '';
+          popup.remove();
+        });
+      }
+    } catch (err) {
+      console.error("Error adding data layers:", err);
+      setError("Failed to add data visualization to the map.");
     }
   };
 
-  // Update map when props change
+  // Update map when map is styled and props change
   useEffect(() => {
-    if (!map.current || loading || !regionId) return;
+    if (!map.current || loading || !regionId || !mapIsStyled) return;
 
     // Update the visualization based on new props
     console.log(`Updating regional map for ${regionId}: ${year}, ${emissionType}, ${displayType}`);
     addRegionalDataLayers();
     
-  }, [regionId, year, emissionType, displayType, loading, data]);
+  }, [regionId, year, emissionType, displayType, loading, mapIsStyled, data]);
 
   if (error) {
     return (
