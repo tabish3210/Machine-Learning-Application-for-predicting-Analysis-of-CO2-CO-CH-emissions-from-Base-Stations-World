@@ -13,6 +13,20 @@ interface WorldMapProps {
   mapStyle: string;
 }
 
+// Define GeoJSON types for TypeScript
+interface EmissionFeature extends GeoJSON.Feature {
+  properties: {
+    name: string;
+    emissions: number;
+    intensity: number;
+  };
+  geometry: GeoJSON.Point;
+}
+
+interface EmissionCollection extends GeoJSON.FeatureCollection {
+  features: EmissionFeature[];
+}
+
 // This is a temporary public token - in production, this would be set as an environment variable
 mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1tbCIsImEiOiJjbHplYzRqcWcwenIxMmpxcTZjZHZheHB0In0.Gm2Wbx5DhZ0-mBzTEma2sg';
 
@@ -119,7 +133,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
     
     // Add example visualization (this would use real data in production)
     // This example adds colored circles for major emission sources
-    const regionsData = {
+    const regionsData: EmissionCollection = {
       'type': 'FeatureCollection',
       'features': [
         {
@@ -268,11 +282,13 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
     });
     
     map.current.on('mouseenter', 'emissions-layer', (e) => {
-      if (!map.current || !e.features || !e.features[0]) return;
+      if (!map.current || !e.features || !e.features[0] || !e.features[0].geometry.type) return;
       
       map.current.getCanvas().style.cursor = 'pointer';
       
-      const coordinates = e.features[0].geometry.coordinates.slice();
+      // Cast the geometry to get TypeScript to recognize coordinates
+      const geometry = e.features[0].geometry as GeoJSON.Point;
+      const coordinates = geometry.coordinates.slice();
       const name = e.features[0].properties.name;
       const emissions = e.features[0].properties.emissions;
       const intensity = e.features[0].properties.intensity;
@@ -286,7 +302,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
       `;
       
       popup
-        .setLngLat(coordinates)
+        .setLngLat(coordinates as [number, number])
         .setHTML(html)
         .addTo(map.current);
     });

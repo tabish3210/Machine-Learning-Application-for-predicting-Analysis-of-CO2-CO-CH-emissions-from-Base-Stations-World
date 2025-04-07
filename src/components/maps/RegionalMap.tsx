@@ -14,6 +14,19 @@ interface RegionalMapProps {
   displayType: string;
 }
 
+// Define GeoJSON types for TypeScript
+interface EmissionPointFeature extends GeoJSON.Feature {
+  properties: {
+    value: number;
+    emissionType: string;
+  };
+  geometry: GeoJSON.Point;
+}
+
+interface EmissionPointCollection extends GeoJSON.FeatureCollection {
+  features: EmissionPointFeature[];
+}
+
 // This is a temporary public token - in production, this would be set as an environment variable
 mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1tbCIsImEiOiJjbHplYzRqcWcwenIxMmpxcTZjZHZheHB0In0.Gm2Wbx5DhZ0-mBzTEma2sg';
 
@@ -144,8 +157,8 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
     }
     
     // Create mock emission source points
-    const generatePoints = (center: [number, number], count: number, radius: number) => {
-      const points = [];
+    const generatePoints = (center: [number, number], count: number, radius: number): EmissionPointFeature[] => {
+      const points: EmissionPointFeature[] = [];
       for (let i = 0; i < count; i++) {
         // Create random points in a circle around the center
         const angle = Math.random() * Math.PI * 2;
@@ -206,7 +219,7 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
         radius = 5;
     }
     
-    const points = {
+    const points: EmissionPointCollection = {
       type: 'FeatureCollection',
       features: generatePoints(center, pointCount, radius)
     };
@@ -274,11 +287,13 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
     
     if (displayType !== 'intensity') {
       map.current.on('mouseenter', 'emission-points', (e) => {
-        if (!map.current || !e.features || !e.features[0]) return;
+        if (!map.current || !e.features || !e.features[0] || !e.features[0].geometry.type) return;
         
         map.current.getCanvas().style.cursor = 'pointer';
         
-        const coordinates = e.features[0].geometry.coordinates.slice();
+        // Cast the geometry to get TypeScript to recognize coordinates
+        const geometry = e.features[0].geometry as GeoJSON.Point;
+        const coordinates = geometry.coordinates.slice();
         const value = e.features[0].properties.value;
         
         const displayValue = displayType === 'total' 
@@ -292,7 +307,7 @@ const RegionalMap: React.FC<RegionalMapProps> = ({ regionId, year, emissionType,
         `;
         
         popup
-          .setLngLat(coordinates)
+          .setLngLat(coordinates as [number, number])
           .setHTML(html)
           .addTo(map.current);
       });
