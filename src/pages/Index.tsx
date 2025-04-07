@@ -1,8 +1,13 @@
 
 import Dashboard from '@/components/Dashboard';
+import AppLayout from '@/components/layout/AppLayout';
 
 const Index = () => {
-  return <Dashboard />;
+  return (
+    <AppLayout>
+      <Dashboard />
+    </AppLayout>
+  );
 };
 
 export default Index;
