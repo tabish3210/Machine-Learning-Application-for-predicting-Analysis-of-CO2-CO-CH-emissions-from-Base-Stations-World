@@ -44,7 +44,7 @@ const StationList: React.FC<StationListProps> = ({ stations, onStationSelect, se
                   </div>
                   <div>
                     <span className="text-muted-foreground">CO:</span>{' '}
-                    <span className="font-medium">{station.emissions.co</span>
+                    <span className="font-medium">{station.emissions.co}</span>
                   </div>
                   <div>
                     <span className="text-muted-foreground">CH₄:</span>{' '}
