@@ -1,17 +1,30 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import { ChartContainer, ChartLegendContent, ChartTooltipContent } from '@/components/ui/chart';
 import { 
   BarChart, Bar, LineChart, Line, ScatterChart, Scatter, 
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Cell
 } from 'recharts';
+import { supabase } from '@/integrations/supabase/client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle } from 'lucide-react';
 
 interface SectorEmissionChartProps {
   sectorId: string;
   year?: string;
   emissionType: string;
   chartType: 'global' | 'byRegion' | 'trends' | 'stationIntensity' | 'efficiency';
+}
+
+interface EmissionData {
+  globalTrendData: any[];
+  regionData: any[];
+  stationIntensityData: any[];
+  efficiencyData: any[];
+  threats: any[];
+  safetyMeasures: any[];
 }
 
 const COLORS = ['#3b82f6', '#f97316', '#8b5cf6', '#10b981', '#ef4444'];
@@ -22,41 +35,51 @@ const SectorEmissionChart: React.FC<SectorEmissionChartProps> = ({
   emissionType, 
   chartType 
 }) => {
-  // This would come from Supabase in a real application
-  const globalTrendData = useMemo(() => [
-    { year: '2018', co2: 8200, co: 92, ch4: 44 },
-    { year: '2019', co2: 8400, co: 94, ch4: 45 },
-    { year: '2020', co2: 7800, co: 88, ch4: 43 },
-    { year: '2021', co2: 8300, co: 93, ch4: 46 },
-    { year: '2022', co2: 8600, co: 96, ch4: 47 },
-    { year: '2023', co2: 8800, co: 98, ch4: 48 },
-  ], []);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<EmissionData | null>(null);
 
-  const regionData = useMemo(() => [
-    { region: 'US', co2: 2300, co: 24, ch4: 8 },
-    { region: 'Europe', co2: 1800, co: 18, ch4: 6 },
-    { region: 'India', co2: 1400, co: 22, ch4: 12 },
-    { region: 'China', co2: 2700, co: 28, ch4: 16 },
-    { region: 'Rest of World', co2: 2600, co: 26, ch4: 14 },
-  ], []);
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase.functions.invoke('get-emission-data', {
+          body: { year, emissionType, sector: sectorId }
+        });
 
-  const stationIntensityData = useMemo(() => [
-    { region: 'US', stations: 12, intensity: 192 },
-    { region: 'Europe', stations: 16, intensity: 112 },
-    { region: 'India', stations: 8, intensity: 175 },
-    { region: 'China', stations: 20, intensity: 135 },
-    { region: 'Rest of World', stations: 18, intensity: 144 },
-  ], []);
+        if (error) {
+          throw new Error(error.message);
+        }
 
-  const efficiencyData = useMemo(() => [
-    { region: 'US', efficiency: 87, emissions: 2300, stations: 12 },
-    { region: 'Europe', efficiency: 92, emissions: 1800, stations: 16 },
-    { region: 'India', efficiency: 84, emissions: 1400, stations: 8 },
-    { region: 'China', efficiency: 81, emissions: 2700, stations: 20 },
-    { region: 'Rest of World', efficiency: 79, emissions: 2600, stations: 18 },
-  ], []);
+        setData(data);
+      } catch (err) {
+        console.error('Error fetching emission data:', err);
+        setError('Failed to load emission data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [sectorId, year, emissionType]);
 
   const renderChart = () => {
+    if (loading) {
+      return <Skeleton className="w-full h-full" />;
+    }
+
+    if (error || !data) {
+      return (
+        <Alert variant="destructive" className="h-full flex items-center justify-center">
+          <AlertCircle className="h-5 w-5" />
+          <AlertDescription>{error || 'No data available'}</AlertDescription>
+        </Alert>
+      );
+    }
+
+    const { globalTrendData, regionData, stationIntensityData, efficiencyData } = data;
+
     if (chartType === 'global') {
       return (
         <ResponsiveContainer width="100%" height="100%">
