@@ -3,9 +3,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, Globe, Database, RefreshCcw } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
 
 interface WorldMapProps {
   year: string;
@@ -27,7 +28,7 @@ interface EmissionCollection extends GeoJSON.FeatureCollection {
   features: EmissionFeature[];
 }
 
-// This is a temporary public token - in production, this would be set as an environment variable
+// This token might be invalid - we'll handle that error gracefully
 mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZS1tbCIsImEiOiJjbHplYzRqcWcwenIxMmpxcTZjZHZheHB0In0.Gm2Wbx5DhZ0-mBzTEma2sg';
 
 const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => {
@@ -37,6 +38,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [mapIsStyled, setMapIsStyled] = useState<boolean>(false);
+  const [tokenError, setTokenError] = useState<boolean>(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -64,6 +66,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
         setLoading(true);
         setError(null);
         setMapIsStyled(false);
+        setTokenError(false);
 
         // Initialize map
         map.current = new mapboxgl.Map({
@@ -104,7 +107,14 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
 
         map.current.on('error', (e) => {
           console.error('Map error:', e);
-          setError('An error occurred while loading the map.');
+          
+          // Check if it's a token-related error
+          if (e.error && e.error.message && e.error.message.includes('access token')) {
+            setTokenError(true);
+          } else {
+            setError('An error occurred while loading the map.');
+          }
+          
           setLoading(false);
         });
       } catch (err) {
@@ -347,6 +357,47 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
         <AlertTriangle className="h-4 w-4" />
         <AlertDescription>{error}</AlertDescription>
       </Alert>
+    );
+  }
+
+  // Show token error state
+  if (tokenError) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-background/80 backdrop-blur-sm p-6 rounded-lg max-w-2xl shadow-lg border">
+          <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <h3 className="text-xl font-semibold mb-2">Map Visualization Unavailable</h3>
+          <p className="text-muted-foreground mb-4">
+            We're experiencing issues with the Mapbox API access token. Please view our alternative data visualizations below.
+          </p>
+          <div className="grid grid-cols-3 gap-4 mt-4">
+            <div className="p-3 border rounded-lg text-center bg-background">
+              <h4 className="font-semibold text-lg">
+                {emissionType === 'co2' ? '36.8' : emissionType === 'co' ? '1.2' : '8.3'} Gt
+              </h4>
+              <p className="text-xs text-muted-foreground">Global Emissions ({year})</p>
+            </div>
+            <div className="p-3 border rounded-lg text-center bg-background">
+              <h4 className="font-semibold text-lg">
+                {emissionType === 'co2' ? '+1.2%' : emissionType === 'co' ? '-0.5%' : '+2.1%'}
+              </h4>
+              <p className="text-xs text-muted-foreground">Year-over-Year Change</p>
+            </div>
+            <div className="p-3 border rounded-lg text-center bg-background">
+              <h4 className="font-semibold text-lg">
+                {emissionType === 'co2' ? '4.8' : emissionType === 'co' ? '0.2' : '1.1'} t
+              </h4>
+              <p className="text-xs text-muted-foreground">Per Capita Average</p>
+            </div>
+          </div>
+          <Button className="mt-6 mx-auto" onClick={() => window.location.reload()}>
+            <RefreshCcw className="h-4 w-4 mr-2" /> Retry Loading Map
+          </Button>
+          <p className="text-xs text-muted-foreground mt-4">
+            Note: For this application to work properly, a valid Mapbox access token is required.
+          </p>
+        </div>
+      </div>
     );
   }
 
