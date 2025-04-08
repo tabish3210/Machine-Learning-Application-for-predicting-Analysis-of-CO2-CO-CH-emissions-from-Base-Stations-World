@@ -14,7 +14,7 @@ interface RegionalVisualizationProps {
   displayType: string;
 }
 
-const COLORS = ['#3b82f6', '#f97316', '#8b5cf6', '#10b981', '#ef4444'];
+const COLORS = ['#3b82f6', '#f97316', '#8b5cf6', '#10b981', '#ef4444', '#ec4899', '#f59e0b', '#06b6d4'];
 
 const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({ 
   regionId, 
@@ -22,12 +22,13 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
   emissionType,
   displayType
 }) => {
-  // Mock data for regional visualization - would come from API in real app
+  // Enhanced mock data for regional visualization - would come from API in real app
   const regionData = [
     { name: 'Urban', value: 400, percentage: 40 },
     { name: 'Industrial', value: 300, percentage: 30 },
     { name: 'Rural', value: 200, percentage: 20 },
-    { name: 'Suburban', value: 100, percentage: 10 }
+    { name: 'Suburban', value: 100, percentage: 10 },
+    { name: 'Coastal', value: 150, percentage: 15 }
   ];
   
   const barData = [
@@ -38,14 +39,52 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
     { area: 'Agricultural Belt', co2: 90, co: 8, ch4: 22 }
   ];
 
+  // Animation variants for framer-motion
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.9 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: { 
+        type: "spring",
+        duration: 0.8
+      }
+    }
+  };
+
   return (
-    <div className="w-full h-full flex flex-col">
+    <motion.div 
+      className="w-full h-full flex flex-col"
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+    >
       <div className="flex flex-wrap gap-4 mb-4 justify-center">
         <motion.div 
           className="bg-card p-4 rounded-lg shadow-sm border flex-1 min-w-[200px]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          variants={cardVariants}
         >
           <h3 className="font-semibold mb-1">Total Emissions</h3>
           <div className="text-3xl font-bold">
@@ -59,9 +98,7 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
 
         <motion.div 
           className="bg-card p-4 rounded-lg shadow-sm border flex-1 min-w-[200px]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+          variants={cardVariants}
         >
           <h3 className="font-semibold mb-1">Annual Change</h3>
           <div className="text-3xl font-bold text-green-500">-2.4%</div>
@@ -71,10 +108,8 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
       
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 h-[350px]">
         <motion.div 
-          className="w-full h-full"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
+          className="w-full h-full bg-card p-6 rounded-lg shadow-sm border"
+          variants={cardVariants}
         >
           <h3 className="text-center font-medium mb-2">Regional Distribution</h3>
           <ResponsiveContainer width="100%" height="90%">
@@ -85,9 +120,13 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={120}
+                outerRadius="70%"
+                innerRadius="40%"
                 fill="#8884d8"
                 dataKey="value"
+                animationBegin={300}
+                animationDuration={1500}
+                animationEasing="ease-out"
               >
                 {regionData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -100,15 +139,13 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
         </motion.div>
         
         <motion.div 
-          className="w-full h-full"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.4 }}
+          className="w-full h-full bg-card p-6 rounded-lg shadow-sm border"
+          variants={cardVariants}
         >
           <h3 className="text-center font-medium mb-2">Area Comparison</h3>
           <ResponsiveContainer width="100%" height="90%">
             <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis dataKey="area" />
               <YAxis />
               <Tooltip />
@@ -117,12 +154,51 @@ const RegionalVisualization: React.FC<RegionalVisualizationProps> = ({
                 dataKey={emissionType} 
                 name={emissionType === 'co2' ? 'CO₂' : emissionType === 'co' ? 'CO' : 'CH₄'}
                 fill={emissionType === 'co2' ? '#3b82f6' : emissionType === 'co' ? '#f97316' : '#8b5cf6'} 
+                animationBegin={300}
+                animationDuration={1500}
+                animationEasing="ease-out"
               />
             </BarChart>
           </ResponsiveContainer>
         </motion.div>
       </div>
-    </div>
+      
+      <motion.div 
+        className="mt-6 p-4 rounded-lg border bg-card"
+        variants={itemVariants}
+      >
+        <h3 className="font-medium mb-3">Emission Trends by Sub-Region</h3>
+        <div className="flex flex-wrap gap-3">
+          {['Urban Core', 'Industrial District', 'Residential Areas', 'Business Center', 'Rural Outskirts'].map((area, index) => (
+            <motion.div 
+              key={area} 
+              className="p-3 border rounded-lg flex-1 min-w-[150px] bg-background"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className="text-lg font-semibold">
+                {(25 - index * 3).toFixed(1)}%
+              </div>
+              <div className="text-xs text-muted-foreground">{area}</div>
+              <div className="h-2 bg-slate-200 rounded-full mt-2">
+                <div 
+                  className={`h-full rounded-full ${
+                    index === 0 ? 'bg-blue-500' :
+                    index === 1 ? 'bg-orange-500' :
+                    index === 2 ? 'bg-green-500' :
+                    index === 3 ? 'bg-purple-500' : 'bg-red-500'
+                  }`}
+                  style={{ width: `${25 - index * 3}%` }}
+                />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

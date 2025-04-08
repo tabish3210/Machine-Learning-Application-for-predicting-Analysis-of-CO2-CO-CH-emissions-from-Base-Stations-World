@@ -1,28 +1,28 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Box, PieChart as PieChartIcon, BarChart3, AlertTriangle } from 'lucide-react';
-import MapErrorDisplay from './MapErrorDisplay';
-import TokenErrorDisplay from './TokenErrorDisplay';
-import { motion } from 'framer-motion';
+import { PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon } from 'lucide-react';
+import VisualizationErrorDisplay from './MapErrorDisplay';
+import DataVisualizationFallback from './TokenErrorDisplay';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChartContainer } from '@/components/ui/chart';
 
-interface WorldMapProps {
+interface WorldChartProps {
   year: string;
   emissionType: string;
   visualStyle: string;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) => {
+const WorldChart: React.FC<WorldChartProps> = ({ year, emissionType, visualStyle }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
-  const [tokenError, setTokenError] = useState<boolean>(false);
-  const [view, setView] = useState<'pie' | 'bar' | '3d'>('pie');
+  const [dataError, setDataError] = useState<boolean>(false);
+  const [view, setView] = useState<'pie' | 'bar' | 'line'>('pie');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,13 +45,26 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
     fetchData();
   }, [year, emissionType]);
 
-  // Mock data for visualizations when actual data isn't available
-  const generateMockData = () => {
+  // Generate data for visualizations
+  const generateChartData = () => {
     const regions = ['North America', 'South America', 'Europe', 'Asia', 'Africa', 'Oceania'];
     return regions.map(region => ({
       name: region,
       value: Math.floor(Math.random() * 100) + 20,
       color: getRegionColor(region)
+    }));
+  };
+
+  const generateLineData = () => {
+    const years = ['2018', '2019', '2020', '2021', '2022', '2023'];
+    return years.map(yr => ({
+      year: yr,
+      'North America': Math.floor(Math.random() * 50) + 30,
+      'Europe': Math.floor(Math.random() * 40) + 20,
+      'Asia': Math.floor(Math.random() * 60) + 40,
+      'Africa': Math.floor(Math.random() * 30) + 10,
+      'South America': Math.floor(Math.random() * 25) + 15,
+      'Oceania': Math.floor(Math.random() * 15) + 5,
     }));
   };
 
@@ -67,7 +80,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
     return colors[region as keyof typeof colors] || '#ccc';
   };
 
-  const chartData = data?.regions || generateMockData();
+  const chartData = data?.regions || generateChartData();
+  const lineData = generateLineData();
 
   const getEmissionTypeColor = () => {
     switch(emissionType) {
@@ -79,17 +93,40 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
   };
 
   if (error) {
-    return <MapErrorDisplay message={error} />;
+    return <VisualizationErrorDisplay message={error} />;
   }
 
-  if (tokenError) {
-    return <TokenErrorDisplay year={year} emissionType={emissionType} />;
+  if (dataError) {
+    return <DataVisualizationFallback year={year} emissionType={emissionType} />;
   }
+
+  const containerAnimation = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemAnimation = {
+    hidden: { opacity: 0, y: 20 },
+    show: { opacity: 1, y: 0 }
+  };
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <motion.div 
+      className="relative w-full h-full flex flex-col"
+      initial="hidden"
+      animate="show"
+      variants={containerAnimation}
+    >
       {/* View toggle buttons */}
-      <div className="absolute top-4 right-4 z-10 flex space-x-2">
+      <motion.div 
+        className="absolute top-4 right-4 z-10 flex space-x-2" 
+        variants={itemAnimation}
+      >
         <Button 
           size="sm" 
           variant={view === 'pie' ? "default" : "outline"} 
@@ -110,26 +147,48 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
         </Button>
         <Button 
           size="sm" 
-          variant={view === '3d' ? "default" : "outline"} 
-          onClick={() => setView('3d')}
+          variant={view === 'line' ? "default" : "outline"} 
+          onClick={() => setView('line')}
           className="flex items-center"
         >
-          <Box className="h-4 w-4 mr-2" />
-          3D View
+          <LineChartIcon className="h-4 w-4 mr-2" />
+          Line Chart
         </Button>
-      </div>
+      </motion.div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="flex flex-col items-center">
+        <motion.div 
+          className="flex items-center justify-center h-full"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <motion.div 
+            className="flex flex-col items-center"
+            animate={{ 
+              scale: [1, 1.05, 1],
+              opacity: [0.8, 1, 0.8],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
             <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             <p className="mt-4 text-sm text-muted-foreground">Loading emission data...</p>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       ) : (
-        <>
+        <AnimatePresence mode="wait">
           {view === 'pie' ? (
-            <div className="w-full h-full flex flex-col">
+            <motion.div 
+              key="pie"
+              className="w-full h-full flex flex-col"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
               <Card className="flex-1 overflow-hidden border-0 shadow-none">
                 <CardHeader className={`bg-gradient-to-r ${getEmissionTypeColor()} text-white`}>
                   <div className="flex justify-between items-center">
@@ -143,38 +202,55 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius="80%"
-                        innerRadius="40%"
-                        fill="#8884d8"
-                        dataKey="value"
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                        animationDuration={1000}
-                      >
-                        {chartData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value) => [`${value} Mt`, 'Emissions']} />
-                      <Legend layout="horizontal" verticalAlign="bottom" align="center" />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <motion.div 
+                    className="h-full w-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 100,
+                      delay: 0.2
+                    }}
+                  >
+                    <ChartContainer config={{ pie: {}, regions: {} }} className="h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            outerRadius="80%"
+                            innerRadius="40%"
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                            animationDuration={2000}
+                            animationBegin={300}
+                            animationEasing="ease-out"
+                          >
+                            {chartData.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => [`${value} Mt`, 'Emissions']} />
+                          <Legend layout="horizontal" verticalAlign="bottom" align="center" />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </motion.div>
                 </CardContent>
               </Card>
               
               {/* Data insight cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"
+                variants={containerAnimation}
+              >
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Highest Emitter</h3>
                   <p className="text-xl font-bold">
@@ -184,9 +260,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                 
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Total Emissions</h3>
                   <p className="text-xl font-bold">
@@ -196,19 +271,25 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                 
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Year-over-Year</h3>
                   <p className="text-xl font-bold text-green-500">
                     +{(Math.random() * 5).toFixed(1)}%
                   </p>
                 </motion.div>
-              </div>
-            </div>
+              </motion.div>
+            </motion.div>
           ) : view === 'bar' ? (
-            <div className="w-full h-full flex flex-col">
+            <motion.div 
+              key="bar"
+              className="w-full h-full flex flex-col"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
               <Card className="flex-1 overflow-hidden border-0 shadow-none">
                 <CardHeader className={`bg-gradient-to-r ${getEmissionTypeColor()} text-white`}>
                   <div className="flex justify-between items-center">
@@ -222,34 +303,50 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                   </div>
                 </CardHeader>
                 <CardContent className="p-4 flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
-                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                      <YAxis tick={{ fontSize: 12 }} />
-                      <Tooltip formatter={(value) => [`${value} Mt`, 'Emissions']} />
-                      <Bar 
-                        dataKey="value" 
-                        name="Emissions"
-                        animationDuration={1500} 
-                        animationEasing="ease-out"
-                      >
-                        {chartData.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <motion.div 
+                    className="h-full w-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 100,
+                      delay: 0.2
+                    }}
+                  >
+                    <ChartContainer config={{ bar: {} }} className="h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                          <YAxis tick={{ fontSize: 12 }} />
+                          <Tooltip formatter={(value) => [`${value} Mt`, 'Emissions']} />
+                          <Bar 
+                            dataKey="value" 
+                            name="Emissions"
+                            animationDuration={1500} 
+                            animationEasing="ease-out"
+                            animationBegin={300}
+                          >
+                            {chartData.map((entry: any, index: number) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </motion.div>
                 </CardContent>
               </Card>
               
               {/* Data insight cards - same as pie view */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"
+                variants={containerAnimation}
+              >
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Highest Emitter</h3>
                   <p className="text-xl font-bold">
@@ -259,9 +356,8 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                 
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.2 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Total Emissions</h3>
                   <p className="text-xl font-bold">
@@ -271,100 +367,143 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) 
                 
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.4 }}
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
                 >
                   <h3 className="text-sm font-semibold text-muted-foreground mb-1">Year-over-Year</h3>
                   <p className="text-xl font-bold text-green-500">
                     +{(Math.random() * 5).toFixed(1)}%
                   </p>
                 </motion.div>
-              </div>
-            </div>
-          ) : (
-            <EmissionsThreeDView emissionType={emissionType} data={chartData} />
-          )}
-        </>
-      )}
-    </div>
-  );
-};
-
-// 3D Visualization Component
-const EmissionsThreeDView: React.FC<{ emissionType: string, data: any[] }> = ({ emissionType, data }) => {
-  return (
-    <motion.div 
-      className="relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-slate-900 to-slate-800 rounded-lg overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.7 }}
-    >
-      <div className="absolute inset-0 flex items-center justify-center">
-        {data.map((region, index) => (
-          <motion.div
-            key={region.name}
-            className="absolute"
-            initial={{ scale: 0 }}
-            animate={{ 
-              scale: 1,
-              x: Math.cos(index * (2 * Math.PI / data.length)) * 150,
-              y: Math.sin(index * (2 * Math.PI / data.length)) * 150
-            }}
-            transition={{ 
-              delay: index * 0.2,
-              duration: 1,
-              type: "spring"
-            }}
-          >
-            <motion.div
-              className="relative flex items-center justify-center"
-              animate={{ 
-                rotateY: [0, 360],
-                rotateX: [0, 30, 0]
-              }}
-              transition={{ 
-                duration: 20, 
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            >
-              <div 
-                className="h-20 w-20 rounded-lg shadow-lg transform-gpu"
-                style={{
-                  background: `linear-gradient(45deg, ${region.color}, ${region.color}99)`,
-                  transform: `scale(${0.5 + (region.value / 100)})`,
-                }}
-              />
-              
-              <div className="absolute top-full mt-4 text-center">
-                <p className="text-white font-medium">{region.name}</p>
-                <p className="text-xs text-white/70">{region.value} Mt</p>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        ))}
-      </div>
-      
-      {/* Central sphere */}
-      <motion.div 
-        className="absolute w-24 h-24 bg-white/10 backdrop-blur-md rounded-full z-0"
-        animate={{ 
-          scale: [1, 1.2, 1],
-          opacity: [0.5, 0.8, 0.5]
-        }}
-        transition={{ 
-          duration: 8,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
-      />
-      
-      <div className="absolute bottom-4 left-0 right-0 text-center text-white text-opacity-80 text-sm">
-        <p>3D Emission Visualization - {emissionType.toUpperCase()} ({data.reduce((sum, region) => sum + region.value, 0).toFixed(1)} Mt total)</p>
-      </div>
+          ) : (
+            <motion.div 
+              key="line"
+              className="w-full h-full flex flex-col"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Card className="flex-1 overflow-hidden border-0 shadow-none">
+                <CardHeader className={`bg-gradient-to-r ${getEmissionTypeColor()} text-white`}>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center text-lg">
+                      <LineChartIcon className="h-5 w-5 mr-2" />
+                      Global {emissionType.toUpperCase()} Emissions Historical Trend
+                    </CardTitle>
+                    <Badge variant="secondary" className="bg-white/20 text-white">
+                      6 Years History
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 flex-1">
+                  <motion.div 
+                    className="h-full w-full"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 100,
+                      delay: 0.2
+                    }}
+                  >
+                    <ChartContainer config={{ line: {} }} className="h-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart 
+                          data={lineData}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                          <XAxis dataKey="year" />
+                          <YAxis />
+                          <Tooltip />
+                          <Legend />
+                          <Line 
+                            type="monotone" 
+                            dataKey="North America" 
+                            stroke="#FF6384" 
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                            animationDuration={1500}
+                            animationEasing="ease-out"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="Europe" 
+                            stroke="#FFCE56" 
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                            animationDuration={1500}
+                            animationEasing="ease-out" 
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="Asia" 
+                            stroke="#4BC0C0" 
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                            animationDuration={1500}
+                            animationEasing="ease-out" 
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="Africa" 
+                            stroke="#9966FF" 
+                            strokeWidth={2}
+                            dot={{ r: 4 }}
+                            activeDot={{ r: 6 }}
+                            animationDuration={1500}
+                            animationEasing="ease-out" 
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartContainer>
+                  </motion.div>
+                </CardContent>
+              </Card>
+              
+              <motion.div 
+                className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4"
+                variants={containerAnimation}
+              >
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Highest Growth</h3>
+                  <p className="text-xl font-bold">Asia</p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Biggest Reduction</h3>
+                  <p className="text-xl font-bold">Europe</p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  variants={itemAnimation}
+                  whileHover={{ scale: 1.03 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Overall Trend</h3>
+                  <p className="text-xl font-bold text-amber-500">+2.3% annually</p>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      )}
     </motion.div>
   );
 };
 
-export default WorldMap;
+export default WorldChart;
