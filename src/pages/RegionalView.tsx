@@ -5,7 +5,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import RegionalMap from '@/components/maps/RegionalMap';
+import RegionalVisualization from '@/components/visualizations/RegionalVisualization';
 import RegionalEmissionChart from '@/components/charts/RegionalEmissionChart';
 import { capitalCase } from 'change-case';
 
@@ -84,7 +84,7 @@ const RegionalView = () => {
           </CardHeader>
           <CardContent className="pt-0">
             <div className="h-[500px] w-full">
-              <RegionalMap 
+              <RegionalVisualization 
                 regionId={regionId || ''}
                 year={year} 
                 emissionType={emissionType} 
