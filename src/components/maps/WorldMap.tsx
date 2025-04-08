@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Cube, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react';
+import { Box, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react';
 import MapErrorDisplay from './MapErrorDisplay';
 import TokenErrorDisplay from './TokenErrorDisplay';
 import { motion } from 'framer-motion';
@@ -105,7 +105,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
           onClick={() => setView('3d')}
           className="flex items-center"
         >
-          <Cube className="h-4 w-4 mr-2" />
+          <Box className="h-4 w-4 mr-2" />
           3D View
         </Button>
       </div>
