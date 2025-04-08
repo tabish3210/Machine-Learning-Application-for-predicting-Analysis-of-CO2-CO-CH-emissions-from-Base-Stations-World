@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import WorldMap from '@/components/maps/WorldMap';
@@ -25,8 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 const WorldMapView = () => {
   const [year, setYear] = useState<string>("2023");
   const [emissionType, setEmissionType] = useState<string>("co2");
-  const [mapStyle, setMapStyle] = useState<string>("choropleth");
-  const [mapError, setMapError] = useState<boolean>(false);
+  const [visualStyle, setVisualStyle] = useState<string>("pie");
+  const [visualizationError, setVisualizationError] = useState<boolean>(false);
   const [activeHazard, setActiveHazard] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -38,10 +37,10 @@ const WorldMapView = () => {
     { value: "ch4", label: "Methane (CH₄)" }
   ];
 
-  const mapStyles = [
-    { value: "choropleth", label: "Choropleth Map" },
-    { value: "bubble", label: "Bubble Map" },
-    { value: "hexbin", label: "Hexbin Map" }
+  const visualStyles = [
+    { value: "pie", label: "Pie Chart" },
+    { value: "bar", label: "Bar Chart" },
+    { value: "3d", label: "3D Visualization" }
   ];
 
   // Common climate hazards related to emissions
@@ -118,18 +117,14 @@ const WorldMapView = () => {
     });
   };
 
-  // Map error handler
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      // Simulate checking if the map loaded successfully
-      const mapContainer = document.querySelector('.mapboxgl-map');
-      if (!mapContainer) {
-        setMapError(true);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, []);
+  const handleVisualStyleChange = (value: string) => {
+    setVisualStyle(value);
+    toast({
+      title: "Visualization Style Updated",
+      description: `Now showing ${value === 'pie' ? 'Pie Chart' : value === 'bar' ? 'Bar Chart' : '3D Visualization'}`,
+      duration: 2000,
+    });
+  };
 
   // Get emission type display name
   const getEmissionDisplayName = () => {
@@ -210,12 +205,12 @@ const WorldMapView = () => {
               </SelectContent>
             </Select>
             
-            <Select value={mapStyle} onValueChange={setMapStyle}>
+            <Select value={visualStyle} onValueChange={handleVisualStyleChange}>
               <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Map Style" />
+                <SelectValue placeholder="Visual Style" />
               </SelectTrigger>
               <SelectContent>
-                {mapStyles.map(style => (
+                {visualStyles.map(style => (
                   <SelectItem key={style.value} value={style.value}>{style.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -244,63 +239,28 @@ const WorldMapView = () => {
             <div className="flex justify-between items-center">
               <CardTitle className="flex items-center gap-2">
                 <Globe className="h-5 w-5" />
-                Global {emissionType === 'co2' ? 'CO₂' : emissionType === 'co' ? 'CO' : 'CH₄'} Emissions Map ({year})
+                Global {emissionType === 'co2' ? 'CO₂' : emissionType === 'co' ? 'CO' : 'CH₄'} Emissions Visualization ({year})
               </CardTitle>
               
-              <Badge variant={mapError ? "destructive" : "outline"}>
-                {mapError ? "Map Visualization Issue" : "Interactive Map"}
+              <Badge variant={visualizationError ? "destructive" : "outline"}>
+                {visualizationError ? "Visualization Issue" : "Interactive Chart"}
               </Badge>
             </div>
             <CardDescription>
-              {mapStyle === 'choropleth' 
-                ? 'Color intensity represents emission levels by country' 
-                : mapStyle === 'bubble' 
-                ? 'Bubble size represents total emissions volume' 
-                : 'Hexagonal cells show emission density by region'}
+              {visualStyle === 'pie' 
+                ? 'Pie chart shows emission distribution by region' 
+                : visualStyle === 'bar' 
+                ? 'Bar chart displays comparative emission volumes' 
+                : '3D visualization for immersive data exploration'}
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-0 p-0">
             <div className="h-[600px] w-full relative bg-slate-100 dark:bg-slate-900">
-              {!mapError ? (
-                <WorldMap 
-                  year={year} 
-                  emissionType={emissionType} 
-                  mapStyle={mapStyle} 
-                />
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
-                  <div className="bg-background/80 backdrop-blur-sm p-6 rounded-lg max-w-2xl shadow-lg border">
-                    <Globe className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                    <h3 className="text-xl font-semibold mb-2">Map Visualization Unavailable</h3>
-                    <p className="text-muted-foreground mb-4">
-                      We're experiencing issues loading the interactive map. Please check our alternative data visualizations below.
-                    </p>
-                    <div className="grid grid-cols-3 gap-4 mt-4">
-                      <div className="p-3 border rounded-lg text-center bg-background">
-                        <h4 className="font-semibold text-lg">
-                          {emissionType === 'co2' ? '36.8' : emissionType === 'co' ? '1.2' : '8.3'} Gt
-                        </h4>
-                        <p className="text-xs text-muted-foreground">Global Emissions ({year})</p>
-                      </div>
-                      <div className="p-3 border rounded-lg text-center bg-background">
-                        <h4 className="font-semibold text-lg">
-                          {emissionType === 'co2' ? '+1.2%' : emissionType === 'co' ? '-0.5%' : '+2.1%'}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">Year-over-Year Change</p>
-                      </div>
-                      <div className="p-3 border rounded-lg text-center bg-background">
-                        <h4 className="font-semibold text-lg">
-                          {emissionType === 'co2' ? '4.8' : emissionType === 'co' ? '0.2' : '1.1'} t
-                        </h4>
-                        <p className="text-xs text-muted-foreground">Per Capita Average</p>
-                      </div>
-                    </div>
-                    <Button className="mt-6 mx-auto" onClick={() => window.location.reload()}>
-                      Reload Map
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <WorldMap 
+                year={year} 
+                emissionType={emissionType} 
+                visualStyle={visualStyle} 
+              />
             </div>
           </CardContent>
         </Card>
@@ -478,7 +438,6 @@ const WorldMapView = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Mitigation Strategies */}
         <Card className="border shadow-lg">
           <CardHeader className="bg-muted/50">
             <CardTitle className="flex items-center gap-2">

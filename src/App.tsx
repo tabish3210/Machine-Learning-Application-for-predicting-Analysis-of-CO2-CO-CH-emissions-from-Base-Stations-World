@@ -25,7 +25,6 @@ const App = () => (
             <Route path="/world-map" element={<WorldMapView />} />
             <Route path="/regions/:regionId" element={<RegionalView />} />
             <Route path="/sectors/:sectorId" element={<SectorView />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -1,12 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Box, PieChart as PieChartIcon, AlertTriangle } from 'lucide-react';
+import { Box, PieChart as PieChartIcon, BarChart3, AlertTriangle } from 'lucide-react';
 import MapErrorDisplay from './MapErrorDisplay';
 import TokenErrorDisplay from './TokenErrorDisplay';
 import { motion } from 'framer-motion';
@@ -14,15 +14,15 @@ import { motion } from 'framer-motion';
 interface WorldMapProps {
   year: string;
   emissionType: string;
-  mapStyle: string;
+  visualStyle: string;
 }
 
-const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => {
+const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, visualStyle }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<any>(null);
   const [tokenError, setTokenError] = useState<boolean>(false);
-  const [view, setView] = useState<'pie' | '3d'>('pie');
+  const [view, setView] = useState<'pie' | 'bar' | '3d'>('pie');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,7 +45,7 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
     fetchData();
   }, [year, emissionType]);
 
-  // Mock data for pie chart when actual data isn't available
+  // Mock data for visualizations when actual data isn't available
   const generateMockData = () => {
     const regions = ['North America', 'South America', 'Europe', 'Asia', 'Africa', 'Oceania'];
     return regions.map(region => ({
@@ -98,6 +98,15 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
         >
           <PieChartIcon className="h-4 w-4 mr-2" />
           Pie Chart
+        </Button>
+        <Button 
+          size="sm" 
+          variant={view === 'bar' ? "default" : "outline"} 
+          onClick={() => setView('bar')}
+          className="flex items-center"
+        >
+          <BarChart3 className="h-4 w-4 mr-2" />
+          Bar Chart
         </Button>
         <Button 
           size="sm" 
@@ -160,6 +169,81 @@ const WorldMap: React.FC<WorldMapProps> = ({ year, emissionType, mapStyle }) => 
               </Card>
               
               {/* Data insight cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Highest Emitter</h3>
+                  <p className="text-xl font-bold">
+                    {chartData.reduce((max: any, region: any) => max.value > region.value ? max : region, { value: 0 }).name}
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Total Emissions</h3>
+                  <p className="text-xl font-bold">
+                    {chartData.reduce((sum: number, region: any) => sum + region.value, 0).toFixed(1)} Mt
+                  </p>
+                </motion.div>
+                
+                <motion.div 
+                  className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-1">Year-over-Year</h3>
+                  <p className="text-xl font-bold text-green-500">
+                    +{(Math.random() * 5).toFixed(1)}%
+                  </p>
+                </motion.div>
+              </div>
+            </div>
+          ) : view === 'bar' ? (
+            <div className="w-full h-full flex flex-col">
+              <Card className="flex-1 overflow-hidden border-0 shadow-none">
+                <CardHeader className={`bg-gradient-to-r ${getEmissionTypeColor()} text-white`}>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="flex items-center text-lg">
+                      <BarChart3 className="h-5 w-5 mr-2" />
+                      Global {emissionType.toUpperCase()} Emissions by Region ({year})
+                    </CardTitle>
+                    <Badge variant="secondary" className="bg-white/20 text-white">
+                      {chartData.length} Regions
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-4 flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+                      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                      <YAxis tick={{ fontSize: 12 }} />
+                      <Tooltip formatter={(value) => [`${value} Mt`, 'Emissions']} />
+                      <Bar 
+                        dataKey="value" 
+                        name="Emissions"
+                        animationDuration={1500} 
+                        animationEasing="ease-out"
+                      >
+                        {chartData.map((entry: any, index: number) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+              
+              {/* Data insight cards - same as pie view */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
                 <motion.div 
                   className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow"
